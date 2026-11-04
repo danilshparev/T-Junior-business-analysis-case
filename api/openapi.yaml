@@ -1,0 +1,252 @@
+openapi: 3.0.3
+info:
+  title: T-Junior Mascot API — conceptual reconstruction
+  version: 0.1.0
+  description: |
+    Концептуальная реконструкция API, подготовленная после завершения учебного проекта.
+    Это не оригинальный и не внутренний API Т-Банка. Названия, структуры данных
+    и маршруты приведены исключительно для демонстрации аналитической логики кейса.
+servers:
+  - url: https://api.example.com/v1
+    description: Illustrative server
+tags:
+  - name: Tasks
+  - name: Mascot
+paths:
+  /junior/tasks:
+    post:
+      tags: [Tasks]
+      summary: Создать задание для ребёнка
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Задание создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /junior/tasks/{taskId}/complete:
+    post:
+      tags: [Tasks]
+      summary: Отметить задание выполненным
+      operationId: completeTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Задание ожидает подтверждения родителя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /junior/tasks/{taskId}/confirm:
+    post:
+      tags: [Tasks]
+      summary: Подтвердить выполнение и начислить прогресс маскоту
+      operationId: confirmTask
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Выполнение подтверждено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task, mascot]
+                properties:
+                  task:
+                    $ref: '#/components/schemas/Task'
+                  mascot:
+                    $ref: '#/components/schemas/Mascot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /junior/mascot:
+    get:
+      tags: [Mascot]
+      summary: Получить состояние маскота
+      operationId: getMascot
+      responses:
+        '200':
+          description: Текущее состояние маскота
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascot'
+  /junior/mascot/customization:
+    patch:
+      tags: [Mascot]
+      summary: Изменить доступные элементы внешнего вида
+      operationId: customizeMascot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomizationRequest'
+      responses:
+        '200':
+          description: Внешний вид обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascot'
+        '422':
+          description: Элемент не открыт пользователю
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /junior/mascot/catalog:
+    get:
+      tags: [Mascot]
+      summary: Получить каталог элементов персонализации
+      operationId: getCustomizationCatalog
+      responses:
+        '200':
+          description: Каталог с признаком доступности элементов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CatalogItem'
+components:
+  parameters:
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Операция недоступна в текущем статусе
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required: [title, difficulty]
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          example: Убрать рабочий стол
+        description:
+          type: string
+          maxLength: 500
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        dueAt:
+          type: string
+          format: date-time
+          nullable: true
+    Task:
+      type: object
+      required: [id, title, difficulty, status, progressReward]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        status:
+          type: string
+          enum: [active, awaiting_confirmation, confirmed, rejected]
+        progressReward:
+          type: integer
+          minimum: 0
+          example: 20
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+    Mascot:
+      type: object
+      required: [level, experience, experienceToNextLevel, customization]
+      properties:
+        level:
+          type: integer
+          minimum: 1
+        experience:
+          type: integer
+          minimum: 0
+        experienceToNextLevel:
+          type: integer
+          minimum: 1
+        customization:
+          $ref: '#/components/schemas/CustomizationRequest'
+    CustomizationRequest:
+      type: object
+      properties:
+        outfitId:
+          type: string
+          nullable: true
+        accessoryId:
+          type: string
+          nullable: true
+        backgroundId:
+          type: string
+          nullable: true
+    CatalogItem:
+      type: object
+      required: [id, category, title, unlocked]
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+          enum: [outfit, accessory, background]
+        title:
+          type: string
+        unlocked:
+          type: boolean
+        requiredLevel:
+          type: integer
+          minimum: 1
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
